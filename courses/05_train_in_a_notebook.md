@@ -11,6 +11,7 @@ Sollicitez le professeur, car il est possible que votre contrôle continue en so
 
 Sinon, annulez toutes vos modifications avec `git reset --hard HEAD`. Supprimez potentiellement les fichiers
 non indexés.
+
 Changez maintenant de branche avec `git switch step02`.
 Créez désormais une branche avec votre nom : `git switch -c votrenom/step02`
 
