@@ -19,35 +19,40 @@ jobs:
           ./init_packages.sh
           pip install -r ./cats_dogs_other/requirements.txt
           pip install -r ./cats_dogs_other/label/requirements.txt
+          pip install -r ./cats_dogs_other/api/requirements.txt
+          # For tests purposes, we copy an existing .h5 file in the folder api/resources
+          # We will delete it just after the tests
+          cp ./cats_dogs_other/train/steps/tests/test/input/model/final_model.h5 ./cats_dogs_other/api/resources/model.h5 
           python -m unittest
+          rm ./cats_dogs_other/api/resources/model.h5
       - name: Install mlflow
         run: |
           pip install mlflow[extras]
       - name: Configure Docker (Quay) & Kubectl (Openshift Sandbox)
         run: |
-          docker login -u="${{vars.QUAY_ROBOT_USERNAME}}" -p="${{secrets.QUAY_ROBOT_TOKEN}}" quay.io
-          kubectl config set-cluster openshift-cluster --server=${{vars.OPENSHIFT_SERVER}}
+          docker login -u="${{secrets.QUAY_ROBOT_USERNAME}}" -p="${{secrets.QUAY_ROBOT_TOKEN}}" quay.io
+          kubectl config set-cluster openshift-cluster --server=${{secrets.OPENSHIFT_SERVER}}
           kubectl config set-credentials openshift-credentials --token=${{secrets.OPENSHIFT_TOKEN}}
-          kubectl config set-context openshift-context --cluster=openshift-cluster --user=openshift-credentials --namespace=${{vars.OPENSHIFT_USERNAME}}-dev
+          kubectl config set-context openshift-context --cluster=openshift-cluster --user=openshift-credentials --namespace=${{secrets.OPENSHIFT_USERNAME}}-dev
           kubectl config use openshift-context
       - name: Wake up dailyclean and kto-mlflow
         run: |
           kubectl scale --replicas=1 deployment/dailyclean-api
           sleep 30
-          curl -X POST ${{vars.DAILYCLEAN_ROUTE}}/pods/start
+          curl -X POST ${{secrets.  DAILYCLEAN_ROUTE}}/pods/start
       - name: Build training image
         run: |
-          docker build -f cats_dogs_other/train/Dockerfile -t quay.io/gthomas59800/kto/train/cats-dogs-other-2023-2024:latest --build-arg MLFLOW_S3_ENDPOINT_URL=${{vars.MLFLOW_S3_ENDPOINT_URL}} --build-arg AWS_ACCESS_KEY_ID=${{vars.AWS_ACCESS_KEY_ID}} --build-arg AWS_SECRET_ACCESS_KEY=${{secrets.AWS_SECRET_ACCESS_KEY}} .
+          docker build -f cats_dogs_other/train/Dockerfile -t quay.io/naim22/kto/train/cats-dogs-other-2023-2024:latest --build-arg MLFLOW_S3_ENDPOINT_URL=${{secrets.MLFLOW_S3_ENDPOINT_URL}} --build-arg AWS_ACCESS_KEY_ID=${{secrets.AWS_ACCESS_KEY_ID}} --build-arg AWS_SECRET_ACCESS_KEY=${{secrets.AWS_SECRET_ACCESS_KEY}} .
       - name: Launch mlflow training in Openshift
         run: |
-          export KUBE_MLFLOW_TRACKING_URI="${{vars.MLFLOW_TRACKING_URI}}"
-          export MLFLOW_TRACKING_URI="${{vars.MLFLOW_TRACKING_URI}}"
-          export MLFLOW_S3_ENDPOINT_URL="${{vars.MLFLOW_S3_ENDPOINT_URL}}"
-          export AWS_ACCESS_KEY_ID="${{vars.AWS_ACCESS_KEY_ID}}" 
+          export KUBE_MLFLOW_TRACKING_URI="${{secrets.MLFLOW_TRACKING_URI}}"
+          export MLFLOW_TRACKING_URI="${{secrets.MLFLOW_TRACKING_URI}}"
+          export MLFLOW_S3_ENDPOINT_URL="${{secrets.MLFLOW_S3_ENDPOINT_URL}}"
+          export AWS_ACCESS_KEY_ID="${{secrets.AWS_ACCESS_KEY_ID}}" 
           export AWS_SECRET_ACCESS_KEY="${{secrets.AWS_SECRET_ACCESS_KEY}}"
           
           cd cats_dogs_other/train
           mlflow run . --experiment-name cats-dogs-other --backend kubernetes --backend-config kubernetes_config.json
-      - name: Asleep kto-mlflow and dailyclean
+      - name: Asleep kto-mlflow with dailyclean
         run: |
-          curl -X POST ${{vars.DAILYCLEAN_ROUTE}}/pods/stop
+          curl -X POST ${{secrets.DAILYCLEAN_ROUTE}}/pods/stop
