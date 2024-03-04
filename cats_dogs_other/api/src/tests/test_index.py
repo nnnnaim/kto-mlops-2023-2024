@@ -1,7 +1,8 @@
 import unittest
 
 from fastapi.testclient import TestClient
-from production.api.src import index
+from cats_dogs_other.api.src import index
+
 
 client = TestClient(index.app)
 
